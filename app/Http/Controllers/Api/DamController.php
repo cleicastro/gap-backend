@@ -141,6 +141,10 @@ class DamController extends Controller
                 case 'cancelado':
                     $dams = $dams->where('status', false);
                     break;
+
+                default:
+                    $dams = $dams;
+                    break;
             }
         }
 

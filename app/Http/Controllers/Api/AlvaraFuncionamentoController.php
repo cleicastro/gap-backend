@@ -130,6 +130,10 @@ class AlvaraFuncionamentoController extends Controller
                         $query->where('status', false);
                     });
                     break;
+
+                default:
+                    $alvaras = $alvaras;
+                    break;
             }
         }
 

@@ -142,6 +142,10 @@ class NfsaController extends Controller
                         $query->where('status', false);
                     });
                     break;
+
+                default:
+                    $nfsas = $nfsas;
+                    break;
             }
         }
 
