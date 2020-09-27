@@ -46,12 +46,25 @@ class NfsaController extends Controller
         }
 
         // VERIFICAÇÕES PARA FILTROS COMPLEXOS
+        $id = $request->get('id') ?? '';
         $dataInicialFilter = $request->get('dataInicialFilter') ?? '';
         $dataFinalFilter = $request->get('dataFinalFilter') ?? '';
         $valorTotalFilter = $request->get('valorTotalFilter') ?? '';
-        $docContribuinteFilter = $request->get('docContribuinteFilter') ?? '';
-        $nameContribuinteFilter = $request->get('nameContribuinteFilter') ?? '';
+        $namePrestadorFilter = $request->get('namePrestadorFilter') ?? '';
+        $docPrestadorFilter = $request->get('docPrestadorFilter') ?? '';
+        $nameTomadorFilter = $request->get('nameTomadorFilter') ?? '';
+        $docTomadorFilter = $request->get('docTomadorFilter') ?? '';
         $situacaoFilter = $request->get('situacaoFilter') ?? '';
+        $valorCalculo = $request->get('valorCalculo') ?? '';
+
+        if($id != '')
+        {
+            $nfsas = $nfsas->where('id', $id);
+        }
+        if($valorCalculo != '')
+        {
+            $nfsas = $nfsas->where('valor_calculo', $valorCalculo);
+        }
 
         if($dataInicialFilter != '' && $dataFinalFilter != '')
         {
@@ -71,47 +84,68 @@ class NfsaController extends Controller
             }
         }
 
-        if($docContribuinteFilter != '')
+        if($docPrestadorFilter != '')
         {
-            $nfsas = $nfsas->whereHas('dam.contribuinte', function($query) use($docContribuinteFilter){
-                $query->where('ci_contribuinte.doc', 'like', $docContribuinteFilter.'%');
+            $nfsas = $nfsas->whereHas('prestador', function($query) use($docPrestadorFilter){
+                $query->where('ci_contribuinte.doc', 'like', $docPrestadorFilter.'%');
+            });
+        }
+        if($namePrestadorFilter != '')
+        {
+            $nfsas = $nfsas->whereHas('prestador', function($query) use($namePrestadorFilter){
+                $query->where('ci_contribuinte.nome', 'like', '%'.$namePrestadorFilter.'%');
             });
         }
 
-        if($nameContribuinteFilter != '')
+
+        if($docPrestadorFilter != '')
         {
-            $nfsas = $nfsas->whereHas('dam.contribuinte', function($query) use($nameContribuinteFilter){
-                $query->where('ci_contribuinte.nome', 'like', '%'.$nameContribuinteFilter.'%');
+            $nfsas = $nfsas->whereHas('tomador', function($query) use($docPrestadorFilter){
+                $query->where('ci_contribuinte.doc', 'like', $docPrestadorFilter.'%');
+            });
+        }
+        if($nameTomadorFilter != '')
+        {
+            $nfsas = $nfsas->whereHas('tomador', function($query) use($nameTomadorFilter){
+                $query->where('ci_contribuinte.nome', 'like', '%'.$nameTomadorFilter.'%');
             });
         }
 
         if($situacaoFilter != '')
         {
-            if($situacaoFilter == 'pago'){
+            switch ($situacaoFilter) {
+                case 'pago':
+                    $nfsas = $nfsas->whereHas('dam', function($query){
+                        $query->where('pago', true)
+                            ->where('status', true);
+                    });
+                    break;
 
-                $nfsas = $nfsas->whereHas('dam', function($query){
-                    $query->where('pago', true)
-                    ->where('status', true);
-                });
-            }
-            if($situacaoFilter == 'vencer'){
-                $nfsas = $nfsas->whereHas('dam', function($query){
-                    $query->where('pago', false)
-                    ->where('vencicmento', '>=', date('Y-m-d'))
-                    ->where('status', true);
-                });
-            }
-            if($situacaoFilter == 'inadimplente'){
-                $nfsas = $nfsas->whereHas('dam', function($query){
-                    $query->where('pago', false)
-                    ->where('vencicmento', '<', date('Y-m-d'))
-                    ->where('status', true);
-                });
-            }
-            if($situacaoFilter == 'cancelado'){
-                $nfsas = $nfsas->whereHas('dam', function($query){
-                    $query->where('status', false);
-                });
+                case 'vencer':
+                    $nfsas = $nfsas->whereHas('dam', function($query){
+                        $query->where('pago', false)
+                            ->where('vencicmento', '>=', date('Y-m-d'))
+                            ->where('status', true);
+                    });
+                    break;
+
+                case 'inadimplente':
+                    $nfsas = $nfsas->whereHas('dam', function($query){
+                        $query->where('pago', false)
+                            ->where('vencicmento', '<', date('Y-m-d'))
+                            ->where('status', true);
+                    });
+                    break;
+
+                case 'cancelado':
+                    $nfsas = $nfsas->whereHas('dam', function($query){
+                        $query->where('status', false);
+                    });
+                    break;
+
+                default:
+                    $dams = $dams;
+                    break;
             }
         }
 
@@ -153,7 +187,7 @@ class NfsaController extends Controller
                 'receita' => $receita,
                 'info_adicionais' => $infoAdicionais,
                 'referencia' => $referencia,
-                'calculo' => implode('-', array_reverse(explode('/', $emissao))),
+                'calculo' => date('Y-m-d'),
                 'vencicmento' => $vencimento,
                 'data_pagamento' => null,
                 'emissao' => date('Y-m-d H:i:s'),
@@ -245,11 +279,12 @@ class NfsaController extends Controller
 
         date_default_timezone_set('America/Sao_Paulo');
         $data = $request->all();
+        // return response()->json($data);
 
         try {
-            $idDAM = $data['dam']['id'] ?? '';
+            $idDAM = $data['nfsa']['dam']['id'] ?? '';
+            $idContribuinte = $data['dam']['idPrestador'] ?? '';
             $docOrigem = $data['dam']['docOrigem'] ?? '';
-            $idContribuinte = $data['dam']['idContribuinte'] ?? '';
             $infoAdicionais = $data['dam']['infoAdicionais'] ?? '';
             $referencia = $data['dam']['referencia'] ?? '';
             $vencimento = $data['dam']['vencimento'] ?? '';
@@ -271,7 +306,7 @@ class NfsaController extends Controller
                 'taxa_expedicao' => $taxaExp,
                 'valor_total' => $valorTotal
             );
-            $dams = $this->dam->where('id', $idDAM)->update($dataDam);
+            $dams = $this->dam->find($idDAM)->update($dataDam);
 
         } catch (\Illuminate\Database\QueryException $exception) {
             return response()->json([
@@ -282,8 +317,8 @@ class NfsaController extends Controller
 
         try {
             $dataNFSA = array(
-                'id_prestador' => $data['nfsa']['idPrestador'],
-                'id_tomador' => $data['nfsa']['idTomador'],
+                'id_prestador' => $data['dam']['idPrestador'],
+                'id_tomador' => $data['dam']['idTomador'],
                 'aliquota_iss' => $data['nfsa']['aliquotaISS'],
                 'municipio' => $data['nfsa']['municipio'],
                 'uf' => $data['nfsa']['uf'],
@@ -318,6 +353,8 @@ class NfsaController extends Controller
                 $idItem = $value['id'] ?? 0;
                 if($idItem == 0){
                     $this->item->create($nfsaItemInsertWithIdNFSA);
+                }else{
+                    $this->item->find($value['id'])->update($nfsaItemInsertWithIdNFSA);
                 }
             }
 

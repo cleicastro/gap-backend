@@ -120,22 +120,31 @@ class DamController extends Controller
 
         if($situacaoFilter != '')
         {
-            if($situacaoFilter == 'pago'){
-                $dams = $dams->where('pago', true)
-                ->where('status', true);
-            }
-            if($situacaoFilter == 'vencer'){
-                $dams = $dams->where('pago', false)
-                    ->where('vencicmento', '>=', date('Y-m-d'))
-                    ->where('status', true);
-            }
-            if($situacaoFilter == 'inadimplente'){
-                $dams = $dams->where('pago', false)
-                    ->where('vencicmento', '<', date('Y-m-d'))
-                    ->where('status', true);
-            }
-            if($situacaoFilter == 'cancelado'){
-                $dams = $dams->where('status', false);
+            switch ($situacaoFilter) {
+                case 'pago':
+                    $dams = $dams->where('pago', true)
+                        ->where('status', true);
+                    break;
+
+                case 'vencer':
+                    $dams = $dams->where('pago', false)
+                        ->where('vencicmento', '>=', date('Y-m-d'))
+                        ->where('status', true);
+                    break;
+
+                case 'inadimplente':
+                    $dams = $dams->where('pago', false)
+                        ->where('vencicmento', '<', date('Y-m-d'))
+                        ->where('status', true);
+                    break;
+
+                case 'cancelado':
+                    $dams = $dams->where('status', false);
+                    break;
+
+                default:
+                    $dams = $dams;
+                    break;
             }
         }
 
@@ -158,7 +167,6 @@ class DamController extends Controller
         $receita = $request->get('receita') ?? '';
         $infoAdicionais = $request->get('infoAdicionais') ?? '';
         $referencia = $request->get('referencia') ?? '';
-        $emissao = $request->get('emissao') ?? '';
         $vencimento = $request->get('vencimento') ?? '';
         $valorPrincipal = $request->get('valorPrincipal') ?? 0;
         $taxaExp = $request->get('taxaExp') ?? 0;
@@ -174,7 +182,7 @@ class DamController extends Controller
             'receita' => $receita,
             'info_adicionais' => $infoAdicionais,
             'referencia' => $referencia,
-            'calculo' => implode('-', array_reverse(explode('/', $emissao))),
+            'calculo' => date('Y-m-d'),
             'vencicmento' => $vencimento,
             'data_pagamento' => null,
             'emissao' => date('Y-m-d H:i:s'),
@@ -206,7 +214,6 @@ class DamController extends Controller
             $receita = $request->get('receita') ?? '';
             $infoAdicionais = $request->get('infoAdicionais') ?? '';
             $referencia = $request->get('referencia') ?? '';
-            $emissao = $request->get('emissao') ?? '';
             $vencimento = $request->get('vencimento') ?? '';
             $valorPrincipal = $request->get('valorPrincipal') ?? '';
             $taxaExp = $request->get('taxaExp') ?? '';
@@ -222,7 +229,6 @@ class DamController extends Controller
                 'receita' => $receita,
                 'info_adicionais' => $infoAdicionais,
                 'referencia' => $referencia,
-                'calculo' => implode('-', array_reverse(explode('/', $emissao))),
                 'vencicmento' => $vencimento,
                 'retido' => true,
                 'valor_princapl' => $valorPrincipal,

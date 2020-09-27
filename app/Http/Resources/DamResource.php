@@ -37,6 +37,7 @@ class DamResource extends JsonResource
             'n_ref'=> $this->n_ref,
             'info_adicionais'=> $this->info_adicionais,
             'referencia'=> $this->referencia,
+            'nfsa'=> $this->nfsa,
             'calculo' => $this->calculo,
             'vencimento' => $this->vencicmento,
             'data_pagamento' => $this->data_pagamento,

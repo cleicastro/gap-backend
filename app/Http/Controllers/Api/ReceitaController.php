@@ -18,7 +18,7 @@ class ReceitaController extends Controller
 
     public function index()
     {
-        $receitas = $this->receita->all();
+        $receitas = $this->receita->orderBy('sigla', 'ASC')->get();
         return response()->json($receitas);
         //return new receitaResource($receitas);
     }

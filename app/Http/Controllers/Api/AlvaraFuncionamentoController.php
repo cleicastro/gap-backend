@@ -29,7 +29,7 @@ class AlvaraFuncionamentoController extends Controller
         if($request->has('sort'))
         {
             $sort = explode(',', $request->get('sort'));
-            $alvaras = $alvaras->orderBy($sort[0], $sort[1]);
+            $alvaras = $alvaras->orderBy('id_dam', $sort[1]);
         }else{
             $alvaras = $alvaras->orderBy('id_dam', 'DESC');
         }
@@ -101,31 +101,39 @@ class AlvaraFuncionamentoController extends Controller
 
         if($situacaoFilter != '')
         {
-            if($situacaoFilter == 'pago'){
+            switch ($situacaoFilter) {
+                case 'pago':
+                    $alvaras = $alvaras->whereHas('dam', function($query){
+                        $query->where('pago', true)
+                        ->where('status', true);
+                    });
+                    break;
 
-                $alvaras = $alvaras->whereHas('dam', function($query){
-                    $query->where('pago', true)
-                    ->where('status', true);
-                });
-            }
-            if($situacaoFilter == 'vencer'){
-                $alvaras = $alvaras->whereHas('dam', function($query){
-                    $query->where('pago', false)
-                    ->where('vencicmento', '>=', date('Y-m-d'))
-                    ->where('status', true);
-                });
-            }
-            if($situacaoFilter == 'inadimplente'){
-                $alvaras = $alvaras->whereHas('dam', function($query){
-                    $query->where('pago', false)
-                    ->where('vencicmento', '<', date('Y-m-d'))
-                    ->where('status', true);
-                });
-            }
-            if($situacaoFilter == 'cancelado'){
-                $alvaras = $alvaras->whereHas('dam', function($query){
-                    $query->where('status', false);
-                });
+                case 'vencer':
+                    $alvaras = $alvaras->whereHas('dam', function($query){
+                        $query->where('pago', false)
+                        ->where('vencicmento', '>=', date('Y-m-d'))
+                        ->where('status', true);
+                    });
+                    break;
+
+                case 'inadimplente':
+                    $alvaras = $alvaras->whereHas('dam', function($query){
+                        $query->where('pago', false)
+                        ->where('vencicmento', '<', date('Y-m-d'))
+                        ->where('status', true);
+                    });
+                    break;
+
+                case 'cancelado':
+                    $alvaras = $alvaras->whereHas('dam', function($query){
+                        $query->where('status', false);
+                    });
+                    break;
+
+                default:
+                    $dams = $dams;
+                    break;
             }
         }
 
@@ -172,7 +180,7 @@ class AlvaraFuncionamentoController extends Controller
                 'receita' => $receita,
                 'info_adicionais' => $infoAdicionais,
                 'referencia' => $referencia,
-                'calculo' => implode('-', array_reverse(explode('/', $emissao))),
+                'calculo' => date('Y-m-d'),
                 'vencicmento' => $vencimento,
                 'data_pagamento' => null,
                 'emissao' => date('Y-m-d H:i:s'),
@@ -268,10 +276,8 @@ class AlvaraFuncionamentoController extends Controller
                 'receita' => $receita,
                 'info_adicionais' => $infoAdicionais,
                 'referencia' => $referencia,
-                'calculo' => implode('-', array_reverse(explode('/', $emissao))),
                 'vencicmento' => $vencimento,
                 'data_pagamento' => null,
-                'emissao' => implode('-', array_reverse(explode('/', $emissao))),
                 'valor_princapl' => $valorPrincipal,
                 'valor_juros' => $juros,
                 'valor_multa' => $valorMulta,

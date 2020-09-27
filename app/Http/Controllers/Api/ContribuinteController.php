@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\ServiceProvider;
 use App\Models\Contribuinte;
 use App\Models\CadastroAlvaraFuncionamento;
 use App\Http\Resources\ContribuinteResource;
@@ -89,6 +91,7 @@ class ContribuinteController extends Controller
 
     public function store(Request $request)
     {
+        DB::beginTransaction();
         try {
             $data = array();
 
@@ -123,6 +126,7 @@ class ContribuinteController extends Controller
                 'tipo' => $tipo,
                 'doc' => $doc,
                 'nome' => $nome,
+                'nome_fantasia' => $nomeFantasia,
                 'doc_estadual' => $docEstadual,
                 'doc_emissao' => $docEmissao ? implode('-', array_reverse(explode('/', $docEmissao))) : NULL,
                 'doc_orgao' => $docOrgao,
@@ -143,23 +147,31 @@ class ContribuinteController extends Controller
             );
             $contribuinte = $this->contribuinte->create($data);
 
-            if($inscricaoMunicipal != '')
+            if($inscricaoMunicipal == '')
             {
-                $dataCadAlvara = array(
-                    'id_contribuinte' => $contribuinte->id,
-                    'atividade_principal' => $atividadePrincipal,
-                    'atividade_secundaria_I' => $atividadeSecundariaI,
-                    'atividade_secundaria_II' => $atividadeSecundariaII,
-                    'inscricao_municipal' => $inscricaoMunicipal
-                );
-                $cadAlvara = $this->cadAlvara->create($data);
+                $prefix = '01.02.';
+                if($tipo == 'PF') {
+                    $prefix = '02.03.';
+                }
+                $inscricaoMunicipal = $prefix.$contribuinte->id;
             }
+            $dataCadAlvara = array(
+                'id_contribuinte' => $contribuinte->id,
+                'atividade_principal' => $atividadePrincipal,
+                'atividade_secundaria_I' => $atividadeSecundariaI,
+                'atividade_secundaria_II' => $atividadeSecundariaII,
+                'inscricao_municipal' => $inscricaoMunicipal
+            );
+            $cadAlvara = $this->cadAlvara->create($dataCadAlvara);
+            DB::commit();
 
             return new contribuinteResource($contribuinte);
 
         } catch (\Throwable $th) {
+            DB::rollBack();
+
             return response()->json([
-                "message" => "falha ao inserir os dados do contribuinte, favor tentar mais tarde",
+                "message" => "falha ao inserir os dados do contribuinte, favor tentar mais tarde ",
                 "erro" => $th
             ], 501);
         }
@@ -195,11 +207,12 @@ class ContribuinteController extends Controller
         $atividadePrincipal = $request->get('atividadePrincipal') ?? '';
         $atividadeSecundariaI = $request->get('atividadeSecundariaI') ?? '';
         $atividadeSecundariaII = $request->get('atividadeSecundariaII') ?? '';
-
+        $cadAlvara = $request->get('cadAlvara') ?? false;
         $data = array(
             'tipo' => $tipo,
             'doc' => $doc,
             'nome' => $nome,
+            'nome_fantasia' => $nomeFantasia,
             'doc_estadual' => $docEstadual,
             'inscricao_municipal' => $inscricaoMunicipal,
             'doc_emissao' => $docEmissao ? implode('-', array_reverse(explode('/', $docEmissao))) : NULL,
@@ -222,27 +235,32 @@ class ContribuinteController extends Controller
 
         $contribuinte = $this->contribuinte->find($id)->update($data);
 
-        if($inscricaoMunicipal != '')
+        if($inscricaoMunicipal == '')
         {
+            $prefix = '01.02.';
+            if($tipo == 'PF') {
+                $prefix = '02.03.';
+            }
+            $inscricaoMunicipal = $prefix.$id;
+        }
+        $dataCadAlvara = array(
+            'atividade_principal' => $atividadePrincipal,
+            'atividade_secundaria_I' => $atividadeSecundariaI,
+            'atividade_secundaria_II' => $atividadeSecundariaII,
+            'inscricao_municipal' => $inscricaoMunicipal
+        );
+        // caso não possuí cadastro inclui um novo
+        if($cadAlvara == false) {
             $dataCadAlvara = array(
+                'id_contribuinte' => $id,
                 'atividade_principal' => $atividadePrincipal,
                 'atividade_secundaria_I' => $atividadeSecundariaI,
                 'atividade_secundaria_II' => $atividadeSecundariaII,
                 'inscricao_municipal' => $inscricaoMunicipal
             );
+            $cadAlvara = $this->cadAlvara->create($dataCadAlvara);
+        }else{
             $cadAlvara = $this->cadAlvara->where('id_contribuinte', $id)->update($dataCadAlvara);
-
-            // caso não possuí cadastro inclui um novo
-            if($cadAlvara == false) {
-                $dataCadAlvara = array(
-                    'id_contribuinte' => $id,
-                    'atividade_principal' => $atividadePrincipal,
-                    'atividade_secundaria_I' => $atividadeSecundariaI,
-                    'atividade_secundaria_II' => $atividadeSecundariaII,
-                    'inscricao_municipal' => $inscricaoMunicipal
-                );
-                $cadAlvara = $this->cadAlvara->create($dataCadAlvara);
-            }
         }
 
         return response()->json([
