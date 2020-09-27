@@ -130,10 +130,6 @@ class AlvaraFuncionamentoController extends Controller
                         $query->where('status', false);
                     });
                     break;
-
-                default:
-                    $dams = $dams;
-                    break;
             }
         }
 
